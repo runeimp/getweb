@@ -1,4 +1,4 @@
 getweb
 ======
 
-BASH script to wrap wget's web page and site mirroring features
+BASH script to wrap wget's web page and site mirroring features.
