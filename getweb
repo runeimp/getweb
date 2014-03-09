@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+###########
+# getweb: Complete web page and web site mirroring script
+#
+# @author   RuneImp <runeimp@gmail.com>
+# @version  1.0.0
+# @license  http://opensource.org/licenses/MIT
+#
+###
+# Usage:
+# ------
+# getweb http://domain.com/single-page.html
+# getweb -au http://domain.com/ # Mirror an entire website
+# 
+###
+# Installation
+# ------------
+# 1. The getweb BASH script must be in your path and executable
+#
+###
+# Dependencies
+# ------------
+# wget
+# 
+###
+# Error Codes:
+# ------------
+#  1 = No domain specified
+#  2 = Specified switch requires an argument to follow it
+#
+###
+# ChangeLog:
+# ----------
+#	2014-03-08	v1.0.1	Updated documentation
+#	2013-11-21	v1.0.0	Initial script creation
+# 
+###
+# ToDo:
+# -----
+# [ ] 
+#
+
+##
+# GLOBAL VARS
+#
+args='--page-requisites --adjust-extension --convert-links -e robots=off --no-cache --ignore-length --max-redirect=5'
+dir_hosts=false
+domain=false
+declare -a domains=()
+debug=false
+level=false
+recursion=false
+declare -a restrict=()
+url=''
+wget_args=''
+
+##
+# FUNCTIONS
+#
+
+##
+# Script Usage Function
+#
+usage()
+{
+cat << EOF
+
+usage: $0 options
+
+This script takes a collection of
+
+OPTIONS:
+  -a    Flag to get all (the entire site) bellow the given path for the domain in the supplied -u value.
+  -D    Debug. Just echo what the wget command would be.
+  -d    The domain of the page to get. May be specified multiple times to follow links to other domains.
+  -h    Flag to create a directory based on the hostname even if no domains specified via -d.
+  -l    Recursion depth level when -a is specified.
+  -r    Restrict file names as per wget rules. May be specified more than once to include multiple rules.
+  -u    URL to get.
+  -w    wget arguments to be added such as --referer=URL
+  -?    Display this help info.
+
+Download a web page with images and other page assets in the same paths as the site they came from:
+  getweb -u http://domain.com/page.php
+
+
+Download a web site with images and other assets in the same paths as the site they came from starting with their domain name as the directory:
+  getweb -au http://domain.com/page.php -d cdn.domain.com
+
+...
+
+Dependencies:
+  wget
+
+EOF
+}
+
+##
+# Processing Command Line Options
+#
+while getopts “Dad:hl:p:ru:w:?” OPTION
+do
+	case $OPTION in
+		a)
+			recursion=true
+			;;
+		D)
+			debug=true;
+			;;
+		d)
+			# The domain to work with
+			domains+=("$OPTARG")
+			;;
+		h)
+			dir_hosts=true
+			;;
+		l)
+			level="$OPTARG"
+			;;
+		r)
+			restrict+=("$OPTARG")
+			;;
+		u)
+			url="$OPTARG"
+			;;
+		w)
+			wget_args+=" $OPTARG"
+			;;
+		\?)
+			echo "$OPTION = $OPTARG ($OPTIND)" >&2
+			# usage
+			# exit
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			exit 2
+			;;
+	esac
+done
+
+##
+# Must specify at least one domain to use this script
+# 
+if [[ $url == false ]]; then
+	usage
+	exit 1
+fi
+
+##
+# If -a specified get everything in path
+# 
+if [[ $recursion == true ]]; then
+	args+=" --recursive"
+	if [[ $level != false ]]; then
+		args+=" --level=$level"
+	fi
+	args+=" --no-parent"
+fi
+
+##
+# Do not create host named directories by default
+# 
+if [[ $dir_hosts == false && ${#domains[@]} == 0 ]]; then
+	args+=" --no-host-directories"
+fi
+
+##
+# If domains provided via -d add to allowed domains to follow 
+# 
+if [[ ${#domains[@]} > 0 ]]; then
+	domains="${domains[@]}"
+	if [[ ${#domains[@]} > 1 ]]; then
+		args+=" --domains ${domains/ /,}"
+	else
+		args+=" --domains ${domains}"
+	fi
+fi
+
+##
+# Add any additional wget arguments specified with the -w switch
+# 
+args+="$wget_args"
+
+
+##
+# Add base URL
+#
+args+=" ${url}"
+
+##
+# Call main functino with proper commands
+#
+if [[ "$url" == '' ]]; then
+	usage
+else
+	if [[ $debug == true ]]; then
+		echo "wget $args"
+	else
+		wget $args
+	fi
+fi
+
+exit 0
